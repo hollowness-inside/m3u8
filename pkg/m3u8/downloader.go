@@ -33,6 +33,10 @@ func NewDownloader() *Downloader {
 
 // SetHeaders sets the HTTP headers for requests
 func (d *Downloader) SetHeaders(headers map[string]string) {
+	if headers == nil {
+		return
+	}
+
 	d.transport.Headers = headers
 }
 

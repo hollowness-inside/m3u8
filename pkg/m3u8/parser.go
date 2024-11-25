@@ -51,8 +51,8 @@ func parseM3U8(data string, forceURLPrefix, forceExt string) []Segment {
 	return segments
 }
 
-// LoadHeaders loads custom HTTP headers from a JSON file
-func LoadHeaders(headersFile string) (map[string]string, error) {
+// LoadHeadersFromFile loads custom HTTP headers from a JSON file
+func LoadHeadersFromFile(headersFile string) (map[string]string, error) {
 	if headersFile == "" {
 		return nil, nil
 	}

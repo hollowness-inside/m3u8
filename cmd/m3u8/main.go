@@ -24,7 +24,7 @@ var (
 	cleanup        bool
 	fix            string
 	verbose        bool
-	headers        string
+	headersFile    string
 	limit          int
 	concurrent     int
 	ffmpegPath     string
@@ -35,19 +35,15 @@ func runE(cmd *cobra.Command, args []string) error {
 	url := args[0]
 	ctx := context.Background()
 
-	// Create downloader
-	downloader := m3u8.NewDownloader()
-
 	// Load headers from file if specified
-	headerMap, err := m3u8.LoadHeaders(headers)
+	headers, err := m3u8.LoadHeadersFromFile(headersFile)
 	if err != nil {
 		return err
 	}
 
-	// Set headers if provided
-	if headerMap != nil {
-		downloader.SetHeaders(headerMap)
-	}
+	// Create downloader
+	downloader := m3u8.NewDownloader()
+	downloader.SetHeaders(headers)
 
 	// Handle fix mode, where segments are already partially downloaded
 	if fix != "" {
@@ -88,7 +84,7 @@ func runE(cmd *cobra.Command, args []string) error {
 
 	// Apply segment limit if specified
 	if limit > 0 {
-		fmt.Printf("Limiting download to first %d segments", limit)
+		fmt.Printf("Limiting download to first %d segments\n", limit)
 		if limit < len(segments) {
 			segments = segments[:limit]
 		}
@@ -118,7 +114,8 @@ func runE(cmd *cobra.Command, args []string) error {
 			fmt.Println("All segments are already downloaded")
 			return nil
 		}
-		fmt.Printf("Found %d segments to fix", len(missingSegments))
+
+		fmt.Printf("Found %d segments to fix\n", len(missingSegments))
 		segments = missingSegments
 	}
 
@@ -131,7 +128,7 @@ func runE(cmd *cobra.Command, args []string) error {
 		if result.Success {
 			successCount++
 		} else if result.Error != nil {
-			fmt.Printf("Failed to download segment: %v", result.Error)
+			fmt.Printf("Failed to download segment: %v\n", result.Error)
 		}
 	}
 
@@ -217,7 +214,7 @@ func main() {
 	flags.BoolVar(&cleanup, "cleanup", false, "Remove segments directory after successful combination")
 	flags.StringVar(&fix, "fix", "", "Fix missing segments in the specified directory")
 	flags.BoolVar(&verbose, "verbose", false, "Enable verbose output")
-	flags.StringVar(&headers, "headers", "", "Path to JSON file containing request headers")
+	flags.StringVar(&headersFile, "headers", "", "Path to JSON file containing request headers")
 	flags.IntVar(&limit, "limit", 0, "Limit the number of segments to download")
 	flags.IntVar(&concurrent, "concurrent", 10, "Number of concurrent downloads")
 	flags.StringVar(&ffmpegPath, "ffmpeg", "", "Path to ffmpeg executable")
