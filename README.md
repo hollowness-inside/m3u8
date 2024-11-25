@@ -2,6 +2,9 @@
 
 Downloads segments from .m3u8 files and combines them into a single video using ffmpeg.
 
+This is a rewrite of the [original m3u8_download](https://github.com/hollowness-inside/m3u8_download) written in Python.
+With Go, concurrent downloads are faster and more efficient and the program can be compiled into a standalone executable.
+
 ## Features
 
 - **Extremely Fast**: Utilizes goroutines and concurrent downloads
