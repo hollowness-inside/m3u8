@@ -148,7 +148,8 @@ func (d *Downloader) DownloadBatch(ctx context.Context, segments []Segment, segm
 			sem.acquire()
 			defer sem.release()
 
-			path, err := d.downloadSegment(ctx, segment, segmentsDir)
+			path := filepath.Join(segmentsDir, segment.Filename)
+			err := d.downloadSegment(ctx, segment.URL, path)
 			resultsChan <- BatchResult{
 				Index: i,
 				Path:  path,
@@ -168,35 +169,34 @@ func (d *Downloader) DownloadBatch(ctx context.Context, segments []Segment, segm
 	return results
 }
 
-func (d *Downloader) downloadSegment(ctx context.Context, segment Segment, segmentsDir string) (string, error) {
-	fmt.Printf("Downloading segment %s...\n", segment.Filename)
-	outPath := filepath.Join(segmentsDir, segment.Filename)
+func (d *Downloader) downloadSegment(ctx context.Context, url string, path string) error {
+	fmt.Printf("Downloading segment %s...\n", filepath.Base(path))
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, segment.URL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return outPath, fmt.Errorf("failed to create request: %w", err)
+		return fmt.Errorf("failed to create request: %w", err)
 	}
 
 	resp, err := d.client.Do(req)
 	if err != nil {
-		return outPath, fmt.Errorf("failed to download: %w", err)
+		return fmt.Errorf("failed to download: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return outPath, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 
-	out, err := os.Create(outPath)
+	out, err := os.Create(path)
 	if err != nil {
-		return outPath, fmt.Errorf("failed to create file: %w", err)
+		return fmt.Errorf("failed to create file: %w", err)
 	}
 	defer out.Close()
 
 	_, err = io.Copy(out, resp.Body)
 	if err != nil {
-		return outPath, fmt.Errorf("failed to write file: %w", err)
+		return fmt.Errorf("failed to write file: %w", err)
 	}
 
-	return outPath, nil
+	return nil
 }

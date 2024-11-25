@@ -14,6 +14,7 @@ type Segment struct {
 	Filename string
 }
 
+// TODO: !!! ASAP !!! Add support for skipping segments
 // parseM3U8 parses m3u8 content and returns a list of segments
 func parseM3U8(data string, forceURLPrefix, forceExt string) []Segment {
 	var segments []Segment
