@@ -22,6 +22,7 @@ var (
 	cleanup        bool
 	fix            string
 	headersFile    string
+	skip           int
 	limit          int
 	concurrent     int
 	ffmpegPath     string
@@ -82,8 +83,10 @@ func runE(cmd *cobra.Command, args []string) error {
 	// Apply segment limit if specified
 	if limit > 0 {
 		fmt.Printf("Limiting download to first %d segments\n", limit)
-		if limit < len(segments) {
-			segments = segments[:limit]
+		if skip+limit > len(segments) {
+			segments = segments[skip:]
+		} else {
+			segments = segments[skip : skip+limit]
 		}
 	}
 
@@ -201,6 +204,7 @@ func main() {
 	flags.BoolVar(&cleanup, "cleanup", false, "Remove segments directory after successful combination")
 	flags.StringVar(&fix, "fix", "", "Fix missing segments in the specified directory")
 	flags.StringVar(&headersFile, "headers", "", "Path to JSON file containing request headers")
+	flags.IntVar(&skip, "skip", 0, "Skip the first N segments")
 	flags.IntVar(&limit, "limit", 0, "Limit the number of segments to download")
 	flags.IntVar(&concurrent, "concurrent", 10, "Number of concurrent downloads")
 	flags.StringVar(&ffmpegPath, "ffmpeg", "", "Path to ffmpeg executable")
