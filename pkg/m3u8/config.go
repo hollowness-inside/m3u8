@@ -16,7 +16,8 @@ type Config struct {
 // DefaultConfig returns a new Config with default settings
 func DefaultConfig() *Config {
 	return &Config{
-		Logger: defaultLogger{},
+		Logger:  defaultLogger{},
+		Verbose: false,
 	}
 }
 

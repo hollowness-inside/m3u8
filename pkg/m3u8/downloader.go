@@ -20,6 +20,10 @@ type Downloader struct {
 
 // NewDownloader creates a new downloader with the given configuration
 func NewDownloader(config *Config) *Downloader {
+	if config == nil {
+		config = DefaultConfig()
+	}
+
 	transport := &HeaderMapTransport{
 		Base: http.DefaultTransport,
 	}
@@ -72,7 +76,11 @@ func (d *Downloader) loadCache(cacheFile string) ([]Segment, error) {
 	d.config.Logger.Printf("Using cached .m3u8")
 	var segments []Segment
 	if err := json.Unmarshal(data, &segments); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to unmarshal cached m3u8: %w", err)
+	}
+
+	if segments == nil {
+		return nil, fmt.Errorf("cached m3u8 is empty")
 	}
 
 	return segments, nil
@@ -97,7 +105,11 @@ func (d *Downloader) fetchM3U8(ctx context.Context, url, forceURLPrefix, forceEx
 	if err != nil {
 		return nil, fmt.Errorf("failed to download m3u8: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if cerr := resp.Body.Close(); cerr != nil {
+			err = fmt.Errorf("failed to close response body: %w", cerr)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
@@ -108,7 +120,12 @@ func (d *Downloader) fetchM3U8(ctx context.Context, url, forceURLPrefix, forceEx
 		return nil, fmt.Errorf("failed to read m3u8: %w", err)
 	}
 
-	return parseM3U8(string(data), forceURLPrefix, forceExt), nil
+	segments := parseM3U8(string(data), forceURLPrefix, forceExt)
+	if segments == nil {
+		return nil, fmt.Errorf("failed to parse m3u8 data")
+	}
+
+	return segments, nil
 }
 
 // BatchResult represents the result of a segment download

@@ -26,7 +26,9 @@ func CombineSegments(fileList, outputFile string, ffmpegPath string, removeFileL
 	}
 
 	if removeFileList {
-		os.Remove(fileList)
+		if err := os.Remove(fileList); err != nil {
+			return fmt.Errorf("failed to remove fileList: %w", err)
+		}
 	}
 
 	return nil

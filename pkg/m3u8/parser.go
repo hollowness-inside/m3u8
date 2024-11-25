@@ -17,6 +17,10 @@ type Segment struct {
 // parseM3U8 parses m3u8 content and returns a list of segments
 func parseM3U8(data string, forceURLPrefix, forceExt string) []Segment {
 	var segments []Segment
+	if data == "" {
+		return segments
+	}
+
 	lines := strings.Split(data, "\n")
 	segmentNum := 0
 
@@ -59,6 +63,11 @@ func LoadHeaders(headersFile string) (map[string]string, error) {
 	}
 
 	var headers map[string]string
+
+	if len(data) == 0 {
+		return headers, nil
+	}
+
 	if err := json.Unmarshal(data, &headers); err != nil {
 		return nil, fmt.Errorf("failed to parse headers file: %w", err)
 	}
