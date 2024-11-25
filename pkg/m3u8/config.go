@@ -2,21 +2,26 @@ package m3u8
 
 import "fmt"
 
-// Config holds global configuration
-type Config struct {
-	verbose bool
+// Logger defines the interface for logging operations
+type Logger interface {
+	Printf(format string, args ...interface{})
 }
 
-var config Config
+// Config holds configuration for m3u8 operations
+type Config struct {
+	Logger  Logger
+	Verbose bool
+}
 
-// Vprint prints a message if verbose mode is enabled
-func Vprint(format string, a ...interface{}) {
-	if config.verbose {
-		fmt.Printf(format+"\n", a...)
+// DefaultConfig returns a new Config with default settings
+func DefaultConfig() *Config {
+	return &Config{
+		Logger: defaultLogger{},
 	}
 }
 
-// SetVerbose sets the verbose mode for logging
-func SetVerbose(verbose bool) {
-	config.verbose = verbose
+type defaultLogger struct{}
+
+func (l defaultLogger) Printf(format string, args ...interface{}) {
+	fmt.Printf(format+"\n", args...)
 }

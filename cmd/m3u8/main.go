@@ -1,8 +1,8 @@
 package main
 
 import (
+	"context"
 	"fmt"
-	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -23,6 +23,7 @@ var (
 	forceCombine   string
 	cleanup        bool
 	fix            string
+	verbose        bool
 	headers        string
 	limit          int
 	concurrent     int
@@ -31,9 +32,14 @@ var (
 
 func runE(cmd *cobra.Command, args []string) error {
 	url := args[0]
+	ctx := context.Background()
 
-	// Configure verbose printing
-	m3u8.SetVerbose(cmd.Flags().Changed("verbose"))
+	// Create config
+	config := m3u8.DefaultConfig()
+	config.Verbose = verbose
+
+	// Create downloader
+	downloader := m3u8.NewDownloader(config)
 
 	// Load headers
 	headerMap, err := m3u8.LoadHeaders(headers)
@@ -41,13 +47,8 @@ func runE(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Create HTTP client
-	client := &http.Client{}
 	if headerMap != nil {
-		client.Transport = &m3u8.HeaderMapTransport{
-			Headers: headerMap,
-			Base:    http.DefaultTransport,
-		}
+		downloader.SetHeaders(headerMap)
 	}
 
 	// Fix mode
@@ -69,10 +70,6 @@ func runE(cmd *cobra.Command, args []string) error {
 					break
 				}
 			}
-
-			if forceExt == "" {
-				return fmt.Errorf("could not determine segment extension from files")
-			}
 		}
 
 		segmentsDir = fix
@@ -83,14 +80,14 @@ func runE(cmd *cobra.Command, args []string) error {
 	}
 
 	// Download and parse M3U8
-	segments, err := m3u8.DownloadM3U8(client, url, cacheFile, forceURLPrefix, forceExt)
+	segments, err := downloader.DownloadM3U8(ctx, url, cacheFile, forceURLPrefix, forceExt)
 	if err != nil {
 		return err
 	}
 
 	// Apply segment limit if specified
 	if limit > 0 {
-		m3u8.Vprint("Limiting download to first %d segments", limit)
+		config.Logger.Printf("Limiting download to first %d segments", limit)
 		if limit < len(segments) {
 			segments = segments[:limit]
 		}
@@ -98,39 +95,41 @@ func runE(cmd *cobra.Command, args []string) error {
 
 	// Filter out already downloaded segments in fix mode
 	if fix != "" {
-		existingSegments := make(map[string]bool)
+		existingSegments := make(map[string]struct{})
 		files, _ := os.ReadDir(segmentsDir)
 		for _, file := range files {
 			if !file.IsDir() {
 				name := strings.TrimSuffix(file.Name(), filepath.Ext(file.Name()))
-				existingSegments[name] = true
+				existingSegments[name] = struct{}{}
 			}
 		}
 
-		var newSegments []m3u8.Segment
+		var missingSegments []m3u8.Segment
 		for _, seg := range segments {
 			name := strings.TrimSuffix(seg.Filename, filepath.Ext(seg.Filename))
-			if !existingSegments[name] {
-				newSegments = append(newSegments, seg)
+			if _, exists := existingSegments[name]; !exists {
+				missingSegments = append(missingSegments, seg)
 			}
 		}
 
-		if len(newSegments) == 0 {
+		if len(missingSegments) == 0 {
 			fmt.Println("All segments are already downloaded")
 			return nil
 		}
-		m3u8.Vprint("Found %d segments to fix", len(newSegments))
-		segments = newSegments
+		config.Logger.Printf("Found %d segments to fix", len(missingSegments))
+		segments = missingSegments
 	}
 
 	// Download segments
-	results := m3u8.DownloadBatch(client, segments, segmentsDir, concurrent)
+	results := downloader.DownloadBatch(ctx, segments, segmentsDir, concurrent)
 
 	// Count successful downloads
 	successCount := 0
 	for _, result := range results {
 		if result.Success {
 			successCount++
+		} else if result.Error != nil {
+			config.Logger.Printf("Failed to download segment: %v", result.Error)
 		}
 	}
 
@@ -147,29 +146,23 @@ func runE(cmd *cobra.Command, args []string) error {
 		outputFile = combine
 	}
 
-	if outputFile == "" || (!cmd.Flags().Changed("force-combine") && successCount != len(segments)) {
+	if outputFile == "" || (forceCombine != "" && successCount != len(segments)) {
 		return nil
 	}
 
 	// Sort results by segment number
+	numExpr := regexp.MustCompile(`(\d+)`)
+
 	sort.Slice(results, func(i, j int) bool {
-		numI := regexp.MustCompile(`(\d+)`).FindString(filepath.Base(results[i].Path))
-		numJ := regexp.MustCompile(`(\d+)`).FindString(filepath.Base(results[j].Path))
+		numI := numExpr.FindString(filepath.Base(results[i].Path))
+		numJ := numExpr.FindString(filepath.Base(results[j].Path))
 		return numI < numJ
 	})
 
 	// Create filelist for ffmpeg
-	f, err := os.Create(fileList)
-	if err != nil {
+	if err := createFileList(fileList, results); err != nil {
 		return fmt.Errorf("failed to create filelist: %w", err)
 	}
-
-	for _, result := range results {
-		if result.Success {
-			fmt.Fprintf(f, "file '%s'\n", result.Path)
-		}
-	}
-	f.Close()
 
 	// Combine segments
 	if err := m3u8.CombineSegments(fileList, outputFile, ffmpegPath, cleanup); err != nil {
@@ -178,17 +171,33 @@ func runE(cmd *cobra.Command, args []string) error {
 
 	// Cleanup if requested
 	if cleanup {
-		m3u8.Vprint("Cleaning up segments directory %s...", segmentsDir)
+		config.Logger.Printf("Cleaning up segments directory %s...", segmentsDir)
 		os.RemoveAll(segmentsDir)
 	}
 
 	return nil
 }
 
-func main() {
+// createFileList creates a file containing paths to successfully downloaded segments
+func createFileList(fileList string, results []m3u8.BatchResult) error {
+	f, err := os.Create(fileList)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
 
+	for _, result := range results {
+		if result.Success {
+			fmt.Fprintf(f, "file '%s'\n", result.Path)
+		}
+	}
+
+	return nil
+}
+
+func main() {
 	rootCmd := &cobra.Command{
-		Use:   "m3u8_download [url]",
+		Use:   "m3u8_download",
 		Short: "Download and combine M3U8 segments",
 		Args:  cobra.ExactArgs(1),
 		RunE:  runE,
@@ -204,14 +213,13 @@ func main() {
 	flags.StringVar(&forceCombine, "force-combine", "", "Combine segments even if some failed to download")
 	flags.BoolVar(&cleanup, "cleanup", false, "Remove segments directory after successful combination")
 	flags.StringVar(&fix, "fix", "", "Fix missing segments in the specified directory")
-	flags.BoolP("verbose", "v", false, "Enable verbose output")
+	flags.BoolVar(&verbose, "verbose", false, "Enable verbose output")
 	flags.StringVar(&headers, "headers", "", "Path to JSON file containing request headers")
 	flags.IntVar(&limit, "limit", 0, "Limit the number of segments to download")
 	flags.IntVar(&concurrent, "concurrent", 10, "Number of concurrent downloads")
 	flags.StringVar(&ffmpegPath, "ffmpeg", "", "Path to ffmpeg executable")
 
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
 		os.Exit(1)
 	}
 }

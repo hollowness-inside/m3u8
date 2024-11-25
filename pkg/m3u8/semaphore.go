@@ -1,19 +1,19 @@
 package m3u8
 
-type Semaphore struct {
+type semaphore struct {
 	sem chan struct{}
 }
 
-func NewSemaphore(n int) *Semaphore {
-	return &Semaphore{
+func newSemaphore(n int) *semaphore {
+	return &semaphore{
 		sem: make(chan struct{}, n),
 	}
 }
 
-func (s *Semaphore) Acquire() {
+func (s *semaphore) acquire() {
 	s.sem <- struct{}{}
 }
 
-func (s *Semaphore) Release() {
+func (s *semaphore) release() {
 	<-s.sem
 }
