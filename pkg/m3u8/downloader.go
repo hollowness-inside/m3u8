@@ -162,7 +162,7 @@ func (d *Downloader) DownloadBatch(ctx context.Context, segments []Segment, segm
 }
 
 func (d *Downloader) downloadSegment(ctx context.Context, segment Segment, segmentsDir string) (bool, string, error) {
-	d.config.Logger.Printf("Downloading segment %s...", segment.Filename)
+	fmt.Printf("Downloading segment %s...\n", segment.Filename)
 	outPath := filepath.Join(segmentsDir, segment.Filename)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, segment.URL, nil)
