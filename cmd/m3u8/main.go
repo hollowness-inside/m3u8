@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 
@@ -23,7 +22,6 @@ var (
 	forceCombine   string
 	cleanup        bool
 	fix            string
-	verbose        bool
 	headersFile    string
 	limit          int
 	concurrent     int
@@ -120,15 +118,24 @@ func runE(cmd *cobra.Command, args []string) error {
 	}
 
 	// Download segments concurrently
-	results := downloader.DownloadBatch(ctx, segments, segmentsDir, concurrent)
+	resultsChan := downloader.DownloadBatch(ctx, segments, segmentsDir, concurrent)
+
+	// Sort the results based on index
+	results := make([]m3u8.BatchResult, len(segments))
+	for i := range results {
+		results[i] = <-resultsChan
+	}
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Index < results[j].Index
+	})
 
 	// Count successful downloads
 	successCount := 0
 	for _, result := range results {
-		if result.Success {
+		if result.Error != nil {
+			fmt.Printf("Segment %d downloaded to %s\n", result.Index, result.Path)
+		} else {
 			successCount++
-		} else if result.Error != nil {
-			fmt.Printf("Failed to download segment: %v\n", result.Error)
 		}
 	}
 
@@ -150,14 +157,6 @@ func runE(cmd *cobra.Command, args []string) error {
 	if outputFile == "" || (forceCombine != "" && successCount != len(segments)) {
 		return nil
 	}
-
-	// Sort results by segment number for correct combination
-	numExpr := regexp.MustCompile(`(\d+)`)
-	sort.Slice(results, func(i, j int) bool {
-		numI := numExpr.FindString(filepath.Base(results[i].Path))
-		numJ := numExpr.FindString(filepath.Base(results[j].Path))
-		return numI < numJ
-	})
 
 	// Create filelist for ffmpeg
 	if err := createFileList(fileList, results); err != nil {
@@ -187,7 +186,7 @@ func createFileList(fileList string, results []m3u8.BatchResult) error {
 	defer f.Close()
 
 	for _, result := range results {
-		if result.Success {
+		if result.Error != nil {
 			fmt.Fprintf(f, "file '%s'\n", result.Path)
 		}
 	}
@@ -213,7 +212,6 @@ func main() {
 	flags.StringVar(&forceCombine, "force-combine", "", "Combine segments even if some failed to download")
 	flags.BoolVar(&cleanup, "cleanup", false, "Remove segments directory after successful combination")
 	flags.StringVar(&fix, "fix", "", "Fix missing segments in the specified directory")
-	flags.BoolVar(&verbose, "verbose", false, "Enable verbose output")
 	flags.StringVar(&headersFile, "headers", "", "Path to JSON file containing request headers")
 	flags.IntVar(&limit, "limit", 0, "Limit the number of segments to download")
 	flags.IntVar(&concurrent, "concurrent", 10, "Number of concurrent downloads")

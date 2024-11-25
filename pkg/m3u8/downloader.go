@@ -130,14 +130,14 @@ func (d *Downloader) fetchM3U8(ctx context.Context, url, forceURLPrefix, forceEx
 
 // BatchResult represents the result of a segment download
 type BatchResult struct {
-	Success bool
-	Path    string
-	Error   error
+	Index int
+	Path  string
+	Error error
 }
 
 // DownloadBatch downloads multiple segments concurrently
-func (d *Downloader) DownloadBatch(ctx context.Context, segments []Segment, segmentsDir string, concurrency int) []BatchResult {
-	results := make([]BatchResult, len(segments))
+func (d *Downloader) DownloadBatch(ctx context.Context, segments []Segment, segmentsDir string, concurrency int) chan BatchResult {
+	results := make(chan BatchResult, len(segments))
 	sem := newSemaphore(concurrency)
 	var wg sync.WaitGroup
 
@@ -148,11 +148,11 @@ func (d *Downloader) DownloadBatch(ctx context.Context, segments []Segment, segm
 			sem.acquire()
 			defer sem.release()
 
-			success, path, err := d.downloadSegment(ctx, segment, segmentsDir)
-			results[i] = BatchResult{
-				Success: success,
-				Path:    path,
-				Error:   err,
+			path, err := d.downloadSegment(ctx, segment, segmentsDir)
+			results <- BatchResult{
+				Index: i,
+				Path:  path,
+				Error: err,
 			}
 		}(segment, i)
 	}
@@ -161,35 +161,35 @@ func (d *Downloader) DownloadBatch(ctx context.Context, segments []Segment, segm
 	return results
 }
 
-func (d *Downloader) downloadSegment(ctx context.Context, segment Segment, segmentsDir string) (bool, string, error) {
+func (d *Downloader) downloadSegment(ctx context.Context, segment Segment, segmentsDir string) (string, error) {
 	fmt.Printf("Downloading segment %s...\n", segment.Filename)
 	outPath := filepath.Join(segmentsDir, segment.Filename)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, segment.URL, nil)
 	if err != nil {
-		return false, outPath, fmt.Errorf("failed to create request: %w", err)
+		return outPath, fmt.Errorf("failed to create request: %w", err)
 	}
 
 	resp, err := d.client.Do(req)
 	if err != nil {
-		return false, outPath, fmt.Errorf("failed to download: %w", err)
+		return outPath, fmt.Errorf("failed to download: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return false, outPath, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		return outPath, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 
 	out, err := os.Create(outPath)
 	if err != nil {
-		return false, outPath, fmt.Errorf("failed to create file: %w", err)
+		return outPath, fmt.Errorf("failed to create file: %w", err)
 	}
 	defer out.Close()
 
 	_, err = io.Copy(out, resp.Body)
 	if err != nil {
-		return false, outPath, fmt.Errorf("failed to write file: %w", err)
+		return outPath, fmt.Errorf("failed to write file: %w", err)
 	}
 
-	return true, outPath, nil
+	return outPath, nil
 }
