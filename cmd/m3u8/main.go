@@ -30,6 +30,7 @@ var (
 	ffmpegPath     string
 )
 
+// runE is executed as the main entry point for the Cobra command
 func runE(cmd *cobra.Command, args []string) error {
 	url := args[0]
 	ctx := context.Background()
@@ -41,23 +42,25 @@ func runE(cmd *cobra.Command, args []string) error {
 	// Create downloader
 	downloader := m3u8.NewDownloader(config)
 
-	// Load headers
+	// Load headers from file if specified
 	headerMap, err := m3u8.LoadHeaders(headers)
 	if err != nil {
 		return err
 	}
 
+	// Set headers if provided
 	if headerMap != nil {
 		downloader.SetHeaders(headerMap)
 	}
 
-	// Fix mode
+	// Handle fix mode, where segments are already partially downloaded
 	if fix != "" {
+		// Check if the fix directory exists
 		if _, err := os.Stat(fix); os.IsNotExist(err) {
 			return fmt.Errorf("directory %s does not exist", fix)
 		}
 
-		// Get extension from first file if not forced
+		// Determine the file extension from the first file in the directory if not forced
 		if forceExt == "" {
 			files, err := os.ReadDir(fix)
 			if err != nil {
@@ -72,14 +75,16 @@ func runE(cmd *cobra.Command, args []string) error {
 			}
 		}
 
+		// Set the segments directory to the fix directory
 		segmentsDir = fix
 	} else {
+		// Create the segments directory if it doesn't exist
 		if err := os.MkdirAll(segmentsDir, 0755); err != nil {
 			return fmt.Errorf("failed to create segments directory: %w", err)
 		}
 	}
 
-	// Download and parse M3U8
+	// Download and parse the M3U8 file to get the list of segments
 	segments, err := downloader.DownloadM3U8(ctx, url, cacheFile, forceURLPrefix, forceExt)
 	if err != nil {
 		return err
@@ -112,6 +117,7 @@ func runE(cmd *cobra.Command, args []string) error {
 			}
 		}
 
+		// If no segments are missing, exit early
 		if len(missingSegments) == 0 {
 			fmt.Println("All segments are already downloaded")
 			return nil
@@ -120,7 +126,7 @@ func runE(cmd *cobra.Command, args []string) error {
 		segments = missingSegments
 	}
 
-	// Download segments
+	// Download segments concurrently
 	results := downloader.DownloadBatch(ctx, segments, segmentsDir, concurrent)
 
 	// Count successful downloads
@@ -133,6 +139,7 @@ func runE(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	// Report download results
 	if successCount == len(segments) {
 		fmt.Println("All segments downloaded successfully!")
 	} else {
@@ -140,19 +147,19 @@ func runE(cmd *cobra.Command, args []string) error {
 			len(segments)-successCount, len(segments))
 	}
 
-	// Handle combination
+	// Determine the output file for combination
 	outputFile := forceCombine
 	if outputFile == "" {
 		outputFile = combine
 	}
 
+	// If no output file specified or forced combination fails, exit
 	if outputFile == "" || (forceCombine != "" && successCount != len(segments)) {
 		return nil
 	}
 
-	// Sort results by segment number
+	// Sort results by segment number for correct combination
 	numExpr := regexp.MustCompile(`(\d+)`)
-
 	sort.Slice(results, func(i, j int) bool {
 		numI := numExpr.FindString(filepath.Base(results[i].Path))
 		numJ := numExpr.FindString(filepath.Base(results[j].Path))
@@ -164,12 +171,12 @@ func runE(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to create filelist: %w", err)
 	}
 
-	// Combine segments
+	// Combine segments into a single output file
 	if err := m3u8.CombineSegments(fileList, outputFile, ffmpegPath, cleanup); err != nil {
 		return fmt.Errorf("failed to combine segments: %w", err)
 	}
 
-	// Cleanup if requested
+	// Cleanup segments directory if requested
 	if cleanup {
 		config.Logger.Printf("Cleaning up segments directory %s...", segmentsDir)
 		os.RemoveAll(segmentsDir)
