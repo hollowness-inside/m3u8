@@ -35,12 +35,8 @@ func runE(cmd *cobra.Command, args []string) error {
 	url := args[0]
 	ctx := context.Background()
 
-	// Create config
-	config := m3u8.DefaultConfig()
-	config.Verbose = verbose
-
 	// Create downloader
-	downloader := m3u8.NewDownloader(config)
+	downloader := m3u8.NewDownloader()
 
 	// Load headers from file if specified
 	headerMap, err := m3u8.LoadHeaders(headers)
@@ -92,7 +88,7 @@ func runE(cmd *cobra.Command, args []string) error {
 
 	// Apply segment limit if specified
 	if limit > 0 {
-		config.Logger.Printf("Limiting download to first %d segments", limit)
+		fmt.Printf("Limiting download to first %d segments", limit)
 		if limit < len(segments) {
 			segments = segments[:limit]
 		}
@@ -122,7 +118,7 @@ func runE(cmd *cobra.Command, args []string) error {
 			fmt.Println("All segments are already downloaded")
 			return nil
 		}
-		config.Logger.Printf("Found %d segments to fix", len(missingSegments))
+		fmt.Printf("Found %d segments to fix", len(missingSegments))
 		segments = missingSegments
 	}
 
@@ -135,7 +131,7 @@ func runE(cmd *cobra.Command, args []string) error {
 		if result.Success {
 			successCount++
 		} else if result.Error != nil {
-			config.Logger.Printf("Failed to download segment: %v", result.Error)
+			fmt.Printf("Failed to download segment: %v", result.Error)
 		}
 	}
 
@@ -178,7 +174,7 @@ func runE(cmd *cobra.Command, args []string) error {
 
 	// Cleanup segments directory if requested
 	if cleanup {
-		config.Logger.Printf("Cleaning up segments directory %s...", segmentsDir)
+		fmt.Printf("Cleaning up segments directory %s...", segmentsDir)
 		os.RemoveAll(segmentsDir)
 	}
 

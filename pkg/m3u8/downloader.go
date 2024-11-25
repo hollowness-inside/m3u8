@@ -14,16 +14,11 @@ import (
 // Downloader handles M3U8 downloads and segment management
 type Downloader struct {
 	client    *http.Client
-	config    *Config
 	transport *HeaderMapTransport
 }
 
 // NewDownloader creates a new downloader with the given configuration
-func NewDownloader(config *Config) *Downloader {
-	if config == nil {
-		config = DefaultConfig()
-	}
-
+func NewDownloader() *Downloader {
 	transport := &HeaderMapTransport{
 		Base: http.DefaultTransport,
 	}
@@ -32,7 +27,6 @@ func NewDownloader(config *Config) *Downloader {
 		client: &http.Client{
 			Transport: transport,
 		},
-		config:    config,
 		transport: transport,
 	}
 }
@@ -44,7 +38,7 @@ func (d *Downloader) SetHeaders(headers map[string]string) {
 
 // DownloadM3U8 downloads and parses an M3U8 file
 func (d *Downloader) DownloadM3U8(ctx context.Context, url, cacheFile, forceURLPrefix, forceExt string) ([]Segment, error) {
-	d.config.Logger.Printf("Downloading .m3u8")
+	fmt.Printf("Downloading .m3u8")
 
 	if cacheFile != "" {
 		segments, err := d.loadCache(cacheFile)
@@ -60,7 +54,7 @@ func (d *Downloader) DownloadM3U8(ctx context.Context, url, cacheFile, forceURLP
 
 	if cacheFile != "" {
 		if err := d.saveCache(cacheFile, segments); err != nil {
-			d.config.Logger.Printf("Warning: failed to cache m3u8: %v", err)
+			return nil, err
 		}
 	}
 
@@ -73,7 +67,7 @@ func (d *Downloader) loadCache(cacheFile string) ([]Segment, error) {
 		return nil, err
 	}
 
-	d.config.Logger.Printf("Using cached .m3u8")
+	fmt.Printf("Using cached .m3u8")
 	var segments []Segment
 	if err := json.Unmarshal(data, &segments); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal cached m3u8: %w", err)
@@ -87,11 +81,13 @@ func (d *Downloader) loadCache(cacheFile string) ([]Segment, error) {
 }
 
 func (d *Downloader) saveCache(cacheFile string, segments []Segment) error {
-	d.config.Logger.Printf("Caching .m3u8")
+	fmt.Printf("Caching .m3u8")
+
 	data, err := json.Marshal(segments)
 	if err != nil {
 		return err
 	}
+
 	return os.WriteFile(cacheFile, data, 0644)
 }
 
