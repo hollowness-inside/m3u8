@@ -1,4 +1,4 @@
-# m3u8_download (Go Version)
+# m3u8
 
 Downloads segments from .m3u8 files and combines them into a single video using ffmpeg.
 
