@@ -136,8 +136,8 @@ type BatchResult struct {
 }
 
 // DownloadBatch downloads multiple segments concurrently
-func (d *Downloader) DownloadBatch(ctx context.Context, segments []Segment, segmentsDir string, concurrency int) chan BatchResult {
-	results := make(chan BatchResult, len(segments))
+func (d *Downloader) DownloadBatch(ctx context.Context, segments []Segment, segmentsDir string, concurrency int) []BatchResult {
+	resultsChan := make(chan BatchResult, len(segments))
 	sem := newSemaphore(concurrency)
 	var wg sync.WaitGroup
 
@@ -149,7 +149,7 @@ func (d *Downloader) DownloadBatch(ctx context.Context, segments []Segment, segm
 			defer sem.release()
 
 			path, err := d.downloadSegment(ctx, segment, segmentsDir)
-			results <- BatchResult{
+			resultsChan <- BatchResult{
 				Index: i,
 				Path:  path,
 				Error: err,
@@ -158,6 +158,13 @@ func (d *Downloader) DownloadBatch(ctx context.Context, segments []Segment, segm
 	}
 
 	wg.Wait()
+	close(resultsChan)
+
+	results := make([]BatchResult, len(segments))
+	for result := range resultsChan {
+		results[result.Index] = result
+	}
+
 	return results
 }
 

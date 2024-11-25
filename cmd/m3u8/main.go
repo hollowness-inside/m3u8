@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"github.com/hollowness-inside/m3u8/pkg/m3u8"
@@ -118,23 +117,12 @@ func runE(cmd *cobra.Command, args []string) error {
 	}
 
 	// Download segments concurrently
-	resultsChan := downloader.DownloadBatch(ctx, segments, segmentsDir, concurrent)
-
-	// Sort the results based on index
-	results := make([]m3u8.BatchResult, len(segments))
-	for i := range results {
-		results[i] = <-resultsChan
-	}
-	sort.Slice(results, func(i, j int) bool {
-		return results[i].Index < results[j].Index
-	})
+	results := downloader.DownloadBatch(ctx, segments, segmentsDir, concurrent)
 
 	// Count successful downloads
 	successCount := 0
 	for _, result := range results {
-		if result.Error != nil {
-			fmt.Printf("Segment %d downloaded to %s\n", result.Index, result.Path)
-		} else {
+		if result.Error == nil {
 			successCount++
 		}
 	}
@@ -170,7 +158,7 @@ func runE(cmd *cobra.Command, args []string) error {
 
 	// Cleanup segments directory if requested
 	if cleanup {
-		fmt.Printf("Cleaning up segments directory %s...", segmentsDir)
+		fmt.Printf("Cleaning up segments directory \"%s\"...", segmentsDir)
 		os.RemoveAll(segmentsDir)
 	}
 
@@ -186,7 +174,7 @@ func createFileList(fileList string, results []m3u8.BatchResult) error {
 	defer f.Close()
 
 	for _, result := range results {
-		if result.Error != nil {
+		if result.Error == nil {
 			fmt.Fprintf(f, "file '%s'\n", result.Path)
 		}
 	}
