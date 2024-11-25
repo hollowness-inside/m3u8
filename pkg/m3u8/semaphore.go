@@ -1,4 +1,4 @@
-package main
+package m3u8
 
 type Semaphore struct {
 	sem chan struct{}

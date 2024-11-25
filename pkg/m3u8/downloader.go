@@ -1,4 +1,4 @@
-package main
+package m3u8
 
 import (
 	"encoding/json"
@@ -10,13 +10,13 @@ import (
 	"sync"
 )
 
-// downloadM3U8 downloads and parses an M3U8 file
-func downloadM3U8(client *http.Client, url, cacheFile, forceURLPrefix, forceExt string) ([]Segment, error) {
-	vprint("Downloading .m3u8")
+// DownloadM3U8 downloads and parses an M3U8 file
+func DownloadM3U8(client *http.Client, url, cacheFile, forceURLPrefix, forceExt string) ([]Segment, error) {
+	Vprint("Downloading .m3u8")
 
 	if cacheFile != "" {
 		if data, err := os.ReadFile(cacheFile); err == nil {
-			vprint("Using cached .m3u8")
+			Vprint("Using cached .m3u8")
 			var segments []Segment
 			if err := json.Unmarshal(data, &segments); err == nil {
 				return segments, nil
@@ -38,7 +38,7 @@ func downloadM3U8(client *http.Client, url, cacheFile, forceURLPrefix, forceExt 
 	segments := parseM3U8(string(data), forceURLPrefix, forceExt)
 
 	if cacheFile != "" {
-		vprint("Caching .m3u8")
+		Vprint("Caching .m3u8")
 		if data, err := json.Marshal(segments); err == nil {
 			os.WriteFile(cacheFile, data, 0644)
 		}
@@ -49,7 +49,7 @@ func downloadM3U8(client *http.Client, url, cacheFile, forceURLPrefix, forceExt 
 
 // downloadSegment downloads a single segment
 func downloadSegment(client *http.Client, segment Segment, segmentsDir string) (bool, string) {
-	vprint("Downloading segment %s...", segment.Filename)
+	Vprint("Downloading segment %s...", segment.Filename)
 
 	outPath := filepath.Join(segmentsDir, segment.Filename)
 
@@ -86,8 +86,8 @@ type BatchResult struct {
 	Path    string
 }
 
-// downloadBatch downloads multiple segments concurrently
-func downloadBatch(client *http.Client, segments []Segment, segmentsDir string, concurrency int) []BatchResult {
+// DownloadBatch downloads multiple segments concurrently
+func DownloadBatch(client *http.Client, segments []Segment, segmentsDir string, concurrency int) []BatchResult {
 	results := make([]BatchResult, len(segments))
 
 	sem := NewSemaphore(concurrency)
@@ -114,15 +114,15 @@ func downloadBatch(client *http.Client, segments []Segment, segmentsDir string, 
 	return results
 }
 
-// headerMapTransport implements custom header injection
-type headerMapTransport struct {
-	headers map[string]string
-	base    http.RoundTripper
+// HeaderMapTransport implements custom header injection
+type HeaderMapTransport struct {
+	Headers map[string]string
+	Base    http.RoundTripper
 }
 
-func (t *headerMapTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	for k, v := range t.headers {
+func (t *HeaderMapTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	for k, v := range t.Headers {
 		req.Header.Set(k, v)
 	}
-	return t.base.RoundTrip(req)
+	return t.Base.RoundTrip(req)
 }

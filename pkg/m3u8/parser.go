@@ -1,4 +1,4 @@
-package main
+package m3u8
 
 import (
 	"encoding/json"
@@ -47,8 +47,8 @@ func parseM3U8(data string, forceURLPrefix, forceExt string) []Segment {
 	return segments
 }
 
-// loadHeaders loads custom HTTP headers from a JSON file
-func loadHeaders(headersFile string) (map[string]string, error) {
+// LoadHeaders loads custom HTTP headers from a JSON file
+func LoadHeaders(headersFile string) (map[string]string, error) {
 	if headersFile == "" {
 		return nil, nil
 	}

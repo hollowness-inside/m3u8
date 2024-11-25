@@ -1,4 +1,4 @@
-package main
+package m3u8
 
 import (
 	"fmt"
@@ -6,8 +6,8 @@ import (
 	"os/exec"
 )
 
-// combineSegments combines downloaded segments using ffmpeg
-func combineSegments(fileList, outputFile string, ffmpegPath string, removeFileList bool) error {
+// CombineSegments combines downloaded segments using ffmpeg
+func CombineSegments(fileList, outputFile string, ffmpegPath string, removeFileList bool) error {
 	if ffmpegPath == "" {
 		ffmpegPath = "ffmpeg"
 	}

@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/hollowness-inside/m3u8/pkg/m3u8"
 	"github.com/spf13/cobra"
 )
 
@@ -32,10 +33,10 @@ func runE(cmd *cobra.Command, args []string) error {
 	url := args[0]
 
 	// Configure verbose printing
-	config.verbose = cmd.Flags().Changed("verbose")
+	m3u8.SetVerbose(cmd.Flags().Changed("verbose"))
 
 	// Load headers
-	headerMap, err := loadHeaders(headers)
+	headerMap, err := m3u8.LoadHeaders(headers)
 	if err != nil {
 		return err
 	}
@@ -43,9 +44,9 @@ func runE(cmd *cobra.Command, args []string) error {
 	// Create HTTP client
 	client := &http.Client{}
 	if headerMap != nil {
-		client.Transport = &headerMapTransport{
-			headers: headerMap,
-			base:    http.DefaultTransport,
+		client.Transport = &m3u8.HeaderMapTransport{
+			Headers: headerMap,
+			Base:    http.DefaultTransport,
 		}
 	}
 
@@ -82,14 +83,14 @@ func runE(cmd *cobra.Command, args []string) error {
 	}
 
 	// Download and parse M3U8
-	segments, err := downloadM3U8(client, url, cacheFile, forceURLPrefix, forceExt)
+	segments, err := m3u8.DownloadM3U8(client, url, cacheFile, forceURLPrefix, forceExt)
 	if err != nil {
 		return err
 	}
 
 	// Apply segment limit if specified
 	if limit > 0 {
-		vprint("Limiting download to first %d segments", limit)
+		m3u8.Vprint("Limiting download to first %d segments", limit)
 		if limit < len(segments) {
 			segments = segments[:limit]
 		}
@@ -106,7 +107,7 @@ func runE(cmd *cobra.Command, args []string) error {
 			}
 		}
 
-		var newSegments []Segment
+		var newSegments []m3u8.Segment
 		for _, seg := range segments {
 			name := strings.TrimSuffix(seg.Filename, filepath.Ext(seg.Filename))
 			if !existingSegments[name] {
@@ -118,12 +119,12 @@ func runE(cmd *cobra.Command, args []string) error {
 			fmt.Println("All segments are already downloaded")
 			return nil
 		}
-		vprint("Found %d segments to fix", len(newSegments))
+		m3u8.Vprint("Found %d segments to fix", len(newSegments))
 		segments = newSegments
 	}
 
 	// Download segments
-	results := downloadBatch(client, segments, segmentsDir, concurrent)
+	results := m3u8.DownloadBatch(client, segments, segmentsDir, concurrent)
 
 	// Count successful downloads
 	successCount := 0
@@ -171,13 +172,13 @@ func runE(cmd *cobra.Command, args []string) error {
 	f.Close()
 
 	// Combine segments
-	if err := combineSegments(fileList, outputFile, ffmpegPath, cleanup); err != nil {
+	if err := m3u8.CombineSegments(fileList, outputFile, ffmpegPath, cleanup); err != nil {
 		return fmt.Errorf("failed to combine segments: %w", err)
 	}
 
 	// Cleanup if requested
 	if cleanup {
-		vprint("Cleaning up segments directory %s...", segmentsDir)
+		m3u8.Vprint("Cleaning up segments directory %s...", segmentsDir)
 		os.RemoveAll(segmentsDir)
 	}
 
