@@ -89,7 +89,8 @@ Optional arguments:
   --cleanup                  Remove segments directory after successful combination     
   --fix DIR                  Fix missing segments in the specified directory
   --verbose, -v              Enable verbose output                                    
-  --headers FILE             Path to JSON file containing request headers              
+  --headers FILE             Path to JSON file containing request headers     
+  --skip N                   Skip the first N segments         
   --limit N                  Limit the number of segments to download                  
   --concurrent N             Number of concurrent downloads (default: 10)             
   --ffmpeg PATH             Path to ffmpeg executable (default: uses ffmpeg from system PATH)
