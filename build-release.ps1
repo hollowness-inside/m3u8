@@ -34,7 +34,7 @@ foreach ($Platform in $Platforms) {
     $env:GOOS = $GOOS
     $env:GOARCH = $GOARCH
     $CurrentDir = (Get-Location).Path
-    & go build -C $CurrentDir -o (Join-Path $OutputDir $OutputName) $MainPath
+    & go build -C $CurrentDir -o (Join-Path $OutputDir $OutputName) -ldflags "-s -X main.version=$Version" $MainPath
 
     if ($LASTEXITCODE -ne 0) {
         Write-Error "Build failed for $GOOS/$GOARCH"
