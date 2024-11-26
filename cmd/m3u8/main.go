@@ -75,19 +75,9 @@ func runE(cmd *cobra.Command, args []string) error {
 	}
 
 	// Download and parse the M3U8 file to get the list of segments
-	segments, err := downloader.DownloadM3U8(ctx, url, cacheFile, forceURLPrefix, forceExt)
+	segments, err := downloader.DownloadM3U8(ctx, url, cacheFile, forceURLPrefix, forceExt, skip, limit)
 	if err != nil {
 		return err
-	}
-
-	// Apply segment limit if specified
-	if limit > 0 {
-		fmt.Printf("Limiting download to first %d segments\n", limit)
-		if skip+limit > len(segments) {
-			segments = segments[skip:]
-		} else {
-			segments = segments[skip : skip+limit]
-		}
 	}
 
 	// Filter out already downloaded segments in fix mode

@@ -16,11 +16,12 @@ type Segment struct {
 
 // TODO: !!! ASAP !!! Add support for skipping segments
 // parseM3U8 parses m3u8 content and returns a list of segments
-func parseM3U8(data string, forceURLPrefix, forceExt string) []Segment {
-	var segments []Segment
+func parseM3U8(data, forceURLPrefix, forceExt string, skip, limit int) []Segment {
 	if data == "" {
-		return segments
+		return nil
 	}
+
+	segments := make([]Segment, 0, limit)
 
 	lines := strings.Split(data, "\n")
 	segmentNum := 0
@@ -29,6 +30,15 @@ func parseM3U8(data string, forceURLPrefix, forceExt string) []Segment {
 		line = strings.TrimSpace(line)
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
+		}
+
+		if segmentNum < skip {
+			segmentNum++
+			continue
+		}
+
+		if segmentNum >= skip+limit {
+			break
 		}
 
 		url := line

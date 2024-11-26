@@ -41,7 +41,7 @@ func (d *Downloader) SetHeaders(headers map[string]string) {
 }
 
 // DownloadM3U8 downloads and parses an M3U8 file
-func (d *Downloader) DownloadM3U8(ctx context.Context, url, cacheFile, forceURLPrefix, forceExt string) ([]Segment, error) {
+func (d *Downloader) DownloadM3U8(ctx context.Context, url, cacheFile, forceURLPrefix, forceExt string, skip, limit int) ([]Segment, error) {
 	fmt.Printf("Downloading .m3u8")
 
 	if cacheFile != "" {
@@ -51,7 +51,7 @@ func (d *Downloader) DownloadM3U8(ctx context.Context, url, cacheFile, forceURLP
 		}
 	}
 
-	segments, err := d.fetchM3U8(ctx, url, forceURLPrefix, forceExt)
+	segments, err := d.fetchM3U8(ctx, url, forceURLPrefix, forceExt, skip, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +95,7 @@ func (d *Downloader) saveCache(cacheFile string, segments []Segment) error {
 	return os.WriteFile(cacheFile, data, 0644)
 }
 
-func (d *Downloader) fetchM3U8(ctx context.Context, url, forceURLPrefix, forceExt string) ([]Segment, error) {
+func (d *Downloader) fetchM3U8(ctx context.Context, url, forceURLPrefix, forceExt string, skip int, limit int) ([]Segment, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
@@ -120,7 +120,7 @@ func (d *Downloader) fetchM3U8(ctx context.Context, url, forceURLPrefix, forceEx
 		return nil, fmt.Errorf("failed to read m3u8: %w", err)
 	}
 
-	segments := parseM3U8(string(data), forceURLPrefix, forceExt)
+	segments := parseM3U8(string(data), forceURLPrefix, forceExt, skip, limit)
 	if segments == nil {
 		return nil, fmt.Errorf("failed to parse m3u8 data")
 	}
