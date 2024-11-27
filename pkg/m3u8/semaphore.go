@@ -1,5 +1,9 @@
 package m3u8
 
+import (
+	"context"
+)
+
 // semaphore implements a counting semaphore using channels
 type semaphore struct {
 	sem chan struct{}
@@ -12,9 +16,14 @@ func newSemaphore(n int) *semaphore {
 	}
 }
 
-// acquire blocks until a permit is available
-func (s *semaphore) acquire() {
-	s.sem <- struct{}{}
+// acquire blocks until a permit is available or context is cancelled
+func (s *semaphore) acquire(ctx context.Context) error {
+	select {
+	case s.sem <- struct{}{}:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 // release returns a permit to the semaphore

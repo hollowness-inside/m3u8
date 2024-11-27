@@ -145,11 +145,15 @@ func (d *Downloader) DownloadBatch(ctx context.Context, segments []Segment, segm
 		wg.Add(1)
 		go func(segment Segment, i int) {
 			defer wg.Done()
-			sem.acquire()
+			if err := sem.acquire(ctx); err != nil {
+				resultsChan <- BatchResult{Index: i, Error: err}
+				return
+			}
 			defer sem.release()
 
 			path := filepath.Join(segmentsDir, segment.Filename)
 			err := d.downloadSegment(ctx, segment.URL, path)
+
 			resultsChan <- BatchResult{
 				Index: i,
 				Path:  path,
