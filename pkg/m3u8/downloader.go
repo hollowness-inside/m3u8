@@ -42,7 +42,7 @@ func (d *Downloader) SetHeaders(headers map[string]string) {
 
 // DownloadM3U8 downloads and parses an M3U8 file
 func (d *Downloader) DownloadM3U8(ctx context.Context, url, cacheFile, forceURLPrefix, forceExt string, skip, limit int) ([]Segment, error) {
-	fmt.Printf("Downloading .m3u8")
+	fmt.Printf("Downloading .m3u8\n")
 
 	if cacheFile != "" {
 		segments, err := d.loadCache(cacheFile)
@@ -71,7 +71,7 @@ func (d *Downloader) loadCache(cacheFile string) ([]Segment, error) {
 		return nil, err
 	}
 
-	fmt.Printf("Using cached .m3u8")
+	fmt.Printf("Using cached .m3u8\n")
 	var segments []Segment
 	if err := json.Unmarshal(data, &segments); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal cached m3u8: %w", err)
@@ -85,7 +85,7 @@ func (d *Downloader) loadCache(cacheFile string) ([]Segment, error) {
 }
 
 func (d *Downloader) saveCache(cacheFile string, segments []Segment) error {
-	fmt.Printf("Caching .m3u8")
+	fmt.Printf("Caching .m3u8\n")
 
 	data, err := json.Marshal(segments)
 	if err != nil {

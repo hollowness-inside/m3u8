@@ -151,7 +151,7 @@ func runE(cmd *cobra.Command, args []string) error {
 
 	// Cleanup segments directory if requested
 	if cleanup {
-		fmt.Printf("Cleaning up segments directory \"%s\"...", segmentsDir)
+		fmt.Printf("Cleaning up segments directory \"%s\"...\n", segmentsDir)
 		os.RemoveAll(segmentsDir)
 	}
 
