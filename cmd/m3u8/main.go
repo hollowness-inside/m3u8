@@ -12,20 +12,20 @@ import (
 )
 
 var (
-	segmentsDir    string
-	forceExt       string
-	forceURLPrefix string
-	cacheFile      string
-	fileList       string
-	combine        string
-	forceCombine   string
-	cleanup        bool
-	fix            string
-	headersFile    string
-	skip           int
-	limit          int
-	concurrent     int
-	ffmpegPath     string
+	segmentsDir    string // directory for downloaded segments
+	forceExt       string // override segment file extensions
+	forceURLPrefix string // prefix to prepend to segment URLs
+	cacheFile      string // path to segment cache file
+	fileList       string // file containing segments to combine
+	combine        string // output path for combined segments
+	forceCombine   string // combine segments even if some are missing
+	cleanup        bool   // delete segments after combining
+	fix            string // directory with partial downloads to fix
+	headersFile    string // custom HTTP headers file
+	skip           int    // number of segments to skip
+	limit          int    // maximum segments to download
+	concurrent     int    // maximum concurrent downloads
+	ffmpegPath     string // path to ffmpeg binary
 )
 
 // runE is executed as the main entry point for the Cobra command
