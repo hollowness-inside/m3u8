@@ -16,21 +16,17 @@ type Downloader struct {
 	forceURLPrefix string
 	forceExt       string
 
-	client    *http.Client
-	transport *HeaderMapTransport
+	client *http.Client
 }
 
 // NewDownloader creates a new downloader with the given configuration
 func NewDownloader() *Downloader {
-	transport := &HeaderMapTransport{
-		Base: http.DefaultTransport,
-	}
-
 	return &Downloader{
 		client: &http.Client{
-			Transport: transport,
+			Transport: &HeaderMapTransport{
+				Base: http.DefaultTransport,
+			},
 		},
-		transport: transport,
 	}
 }
 
@@ -40,7 +36,7 @@ func (d *Downloader) SetHeaders(headers map[string]string) {
 		return
 	}
 
-	d.transport.Headers = headers
+	d.client.Transport.(*HeaderMapTransport).Headers = headers
 }
 
 // DownloadM3U8 downloads and parses an M3U8 file
