@@ -116,9 +116,9 @@ func (d *Downloader) fetchM3U8(ctx context.Context, url, forceURLPrefix, forceEx
 		return nil, fmt.Errorf("failed to read m3u8: %w", err)
 	}
 
-	segments := parseM3U8(string(data), forceURLPrefix, forceExt, skip, limit)
-	if segments == nil {
-		return nil, fmt.Errorf("failed to parse m3u8 data")
+	segments, err := parseM3U8(string(data), forceURLPrefix, forceExt, skip, limit)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't parse m3u8 segments: %w", err)
 	}
 
 	return segments, nil
