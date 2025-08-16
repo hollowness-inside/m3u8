@@ -17,7 +17,7 @@ type Segment struct {
 
 // TODO: !!! ASAP !!! Add support for skipping segments
 // parseM3U8 parses m3u8 content and returns a list of segments
-func parseM3U8(data, forceURLPrefix, forceExt string, skip, limit int) ([]Segment, error) {
+func (d *Downloader) parseM3U8(data string, skip, limit int) ([]Segment, error) {
 	if data == "" {
 		return nil, fmt.Errorf("m3u8 data is empty")
 	}
@@ -42,15 +42,15 @@ func parseM3U8(data, forceURLPrefix, forceExt string, skip, limit int) ([]Segmen
 			break
 		}
 
-		url, err := url.Parse(forceURLPrefix)
+		url, err := url.Parse(d.forceURLPrefix)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse URL prefix: %w", err)
 		}
 		url = url.JoinPath(line)
 
 		ext := filepath.Ext(line)
-		if forceExt != "" {
-			ext = forceExt
+		if d.forceExt != "" {
+			ext = d.forceExt
 		}
 
 		filename := fmt.Sprintf("segment_%04d%s", segmentNum, ext)

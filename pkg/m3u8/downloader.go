@@ -13,6 +13,9 @@ import (
 
 // Downloader handles M3U8 downloads and segment management
 type Downloader struct {
+	forceURLPrefix string
+	forceExt       string
+
 	client    *http.Client
 	transport *HeaderMapTransport
 }
@@ -116,7 +119,7 @@ func (d *Downloader) fetchM3U8(ctx context.Context, url, forceURLPrefix, forceEx
 		return nil, fmt.Errorf("failed to read m3u8: %w", err)
 	}
 
-	segments, err := parseM3U8(string(data), forceURLPrefix, forceExt, skip, limit)
+	segments, err := d.parseM3U8(string(data), skip, limit)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't parse m3u8 segments: %w", err)
 	}
