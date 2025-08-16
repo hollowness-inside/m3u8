@@ -47,7 +47,6 @@ func parseM3U8(data, forceURLPrefix, forceExt string, skip, limit int) ([]Segmen
 			return nil, fmt.Errorf("failed to parse URL prefix: %w", err)
 		}
 		url = url.JoinPath(line)
-		print(url.String())
 
 		ext := filepath.Ext(line)
 		if forceExt != "" {
