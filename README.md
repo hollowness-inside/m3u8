@@ -1,127 +1,191 @@
 # m3u8
 
-Downloads segments from .m3u8 files and combines them into a single video using ffmpeg.
+A high-performance Go-based tool for downloading and combining video segments from M3U8 playlists. Features concurrent downloads, custom HTTP headers support, and flexible URL handling.
 
-This is a rewrite of the [original m3u8_download](https://github.com/hollowness-inside/m3u8_download) written in Python.
-With Go, concurrent downloads are faster and more efficient and the program can be compiled into a standalone executable.
+This is a complete rewrite of the [original m3u8_download](https://github.com/hollowness-inside/m3u8_download) written in Python, delivering significantly faster performance through Go's concurrency model.
 
-## Features
+## ✨ Key Features
 
-- **Extremely Fast**: Utilizes goroutines and concurrent downloads
-- **Configurable**: Control concurrent downloads, segment extensions, URL prefixes, and more
-- **Caching**: Optional caching of parsed m3u8 files for faster subsequent runs
-- **Flexible**: Supports both relative and absolute URLs in m3u8 files
-- **Robust**: Handles failed downloads gracefully with options to force combine or skip
+### 🔐 Custom HTTP Headers Support
+Specify custom HTTP headers for authentication, user agents, and other requirements:
+- **Headers File**: Load headers from a JSON file (`--headers headers.json`)
+- **Authentication**: Perfect for protected streams requiring tokens or cookies
+- **Flexible**: Support for any HTTP header combination
 
-## Quick Start
+### 🔗 Force Segment URL Prefix
+Override segment URLs with custom prefixes:
+- **URL Manipulation**: Use `--force-url-prefix` to prepend custom URLs to segments
+- **CDN Switching**: Easily switch between different content delivery networks
+- **Local Development**: Point segments to local servers for testing
 
-1. Install Go 1.21 or later
+### ⚡ Performance & Reliability
+- **Concurrent Downloads**: Utilizes goroutines for extremely fast segment retrieval
+- **Caching**: Optional M3U8 file caching for faster subsequent runs
+- **Error Handling**: Graceful failure recovery with force-combine options
+- **Cross-Platform**: Single executable for Windows, macOS, and Linux
 
-2. Install dependencies:
+## 🚀 Quick Start
+
+### Prerequisites
+- Go 1.21 or later
+- ffmpeg installed and in PATH
+
+### Installation
 ```bash
+# Clone and build
+git clone https://github.com/hollowness-inside/m3u8.git
+cd m3u8
 go mod download
-```
-
-3. Build the program:
-```bash
 go build
 ```
 
-4. Make sure ffmpeg is installed and available in your PATH (or specify custom path with --ffmpeg)
-
-5. Basic usage - download and combine segments:
+### Basic Usage
 ```bash
-./m3u8_download "https://example.com/video.m3u8" --combine output.mp4
+# Simple download and combine
+./m3u8 "https://example.com/video.m3u8" --combine output.mp4
 ```
 
-## Usage Examples
+## 📖 Usage Examples
 
-### Download segments only:
+### Authentication with Custom Headers
+For protected streams requiring authentication:
+
 ```bash
-./m3u8_download "https://example.com/video.m3u8"
+# Create headers file
+echo '{
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+  "Authorization": "Bearer your-token-here",
+  "Referer": "https://example.com"
+}' > headers.json
+
+# Download with headers
+./m3u8 "https://protected.example.com/video.m3u8" --headers headers.json --combine output.mp4
 ```
 
-### Download and combine into MP4:
+### Force URL Prefix for Segment URLs
+When segment URLs need modification or CDN switching:
+
 ```bash
-./m3u8_download "https://example.com/video.m3u8" --combine output.mp4
+# Force all segments to use a specific CDN
+./m3u8 "https://example.com/video.m3u8" \
+  --force-url-prefix "https://cdn.example.com/segments/" \
+  --combine output.mp4
+
+# Use local development server
+./m3u8 "https://example.com/video.m3u8" \
+  --force-url-prefix "http://localhost:8080/" \
+  --combine output.mp4
 ```
 
-### Download and force combine into MP4:
-In case some segments fail to download, use --force-combine to combine the downloaded segments anyway:
+### Advanced Download Options
 ```bash
-./m3u8_download "https://example.com/video.m3u8" --force-combine output.mp4
+# High-performance download with 20 concurrent connections
+./m3u8 "https://example.com/video.m3u8" \
+  --concurrent 20 \
+  --cache playlist.cache \
+  --combine output.mp4
+
+# Download specific segment range
+./m3u8 "https://example.com/video.m3u8" \
+  --skip 10 \
+  --limit 100 \
+  --combine output.mp4
+
+# Force combine even with failed segments
+./m3u8 "https://example.com/video.m3u8" \
+  --force-combine output.mp4 \
+  --cleanup
 ```
 
-### Download with custom headers (e.g., for authentication):
+### Repair and Maintenance
 ```bash
-./m3u8_download "https://example.com/video.m3u8" --headers headers.json --combine output.mp4
+# Fix missing segments in existing directory
+./m3u8 "https://example.com/video.m3u8" --fix ./segments
+
+# Force specific file extension
+./m3u8 "https://example.com/video.m3u8" --force-ext .ts
 ```
 
-### Fix missing segments in a directory:
-```bash
-./m3u8_download "https://example.com/video.m3u8" --fix segments
-```
-
-### Force specific extension for segments:
-```bash
-./m3u8_download "https://example.com/video.m3u8" --force-ext .ts --combine output.mp4
-```
-
-### Limit concurrent downloads:
-```bash
-./m3u8_download "https://example.com/video.m3u8" --concurrent 5 --combine output.mp4
-```
-
-## Command Line Options
+## ⚙️ Command Line Reference
 
 ```
-Arguments:
-  url                   URL to the m3u8 file
+Usage: m3u8 <url> [options]
 
-Optional arguments:
-  --segments-dir DIR          Directory to store segments (default: segments)         
-  --force-ext EXT            Force specific extension for segments (e.g., .ts)         
-  --force-url-prefix PREFIX  Force URL prefix for segments                             
-  --cache FILE               Path to cache parsed m3u8                                 
-  --filelist FILE            Path for ffmpeg filelist (default: filelist.txt)        
-  --combine OUTPUT           Combine segments into OUTPUT file after download          
-  --force-combine OUTPUT     Combine segments even if some failed to download         
-  --cleanup                  Remove segments directory after successful combination     
-  --fix DIR                  Fix missing segments in the specified directory
-  --verbose, -v              Enable verbose output                                    
-  --headers FILE             Path to JSON file containing request headers     
-  --skip N                   Skip the first N segments         
-  --limit N                  Limit the number of segments to download                  
-  --concurrent N             Number of concurrent downloads (default: 10)             
-  --ffmpeg PATH             Path to ffmpeg executable (default: uses ffmpeg from system PATH)
+Required:
+  url                         M3U8 playlist URL
+
+Output Options:
+  --segments-dir DIR          Directory to store segments (default: segments)
+  --combine OUTPUT            Combine segments into video file
+  --force-combine OUTPUT      Combine even with failed downloads
+  --cleanup                   Remove segments after successful combination
+
+Authentication & Headers:
+  --headers FILE              JSON file with HTTP headers for requests
+
+URL Manipulation:
+  --force-url-prefix PREFIX   Override segment URL prefix
+  --force-ext EXT            Force file extension for segments
+
+Performance:
+  --concurrent N              Concurrent downloads (default: 10)
+  --cache FILE               Cache parsed M3U8 for faster reruns
+
+Segment Control:
+  --skip N                   Skip first N segments
+  --limit N                  Download only N segments
+  --fix DIR                  Repair missing segments in directory
+
+System:
+  --ffmpeg PATH              Custom ffmpeg executable path
+  --filelist FILE            Custom ffmpeg filelist path
+  --verbose, -v              Enable detailed output
 ```
 
-## Headers File Format
+## 🔧 Configuration Files
 
-The headers file should be a JSON file containing key-value pairs of HTTP headers:
+### Headers File Format
+Create a JSON file for HTTP headers:
 
 ```json
 {
-    "User-Agent": "Mozilla/5.0 ...",
-    "Authorization": "Bearer token123"
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+  "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "Referer": "https://streaming-site.com",
+  "Cookie": "session=abc123; auth=xyz789",
+  "X-Custom-Header": "custom-value"
 }
 ```
 
-## Helpful Tips
+## 💡 Pro Tips
 
-### Getting Website Headers
+### 🔍 Extracting Headers from Browser
+1. Open browser Developer Tools (F12)
+2. Go to Network tab
+3. Navigate to the streaming page
+4. Right-click any request → "Copy as cURL"
+5. Use [curlconverter.com/json](https://curlconverter.com/json/) to convert to JSON
 
-The easiest way to get headers is to use a browser's "Inspect" feature and copy any request on the website as `Copy as cURL (bash)`. Then, go to `https://curlconverter.com/json/` and paste the cURL there. You will see the "headers" field in the resulting JSON.
+### 🎯 Finding Stream URLs
+Install [The Stream Detector](https://chromewebstore.google.com/detail/the-stream-detector/iakkmkmhhckcmoiibcfjnooibphlobak) Chrome extension to automatically capture M3U8 URLs from any webpage.
 
-### Getting Stream URLs
+### 🚀 Performance Optimization
+- Increase `--concurrent` for faster downloads (try 15-25)
+- Use `--cache` to avoid re-parsing large playlists
+- Enable `--cleanup` to save disk space
 
-This Google Chrome extension, [The Stream Detector](https://chromewebstore.google.com/detail/the-stream-detector/iakkmkmhhckcmoiibcfjnooibphlobak), captures all stream URLs on a website.
+## 📋 Requirements
 
-## Requirements
+- **Go**: Version 1.21 or later
+- **ffmpeg**: Required for video combination
+  - Windows: Download from [ffmpeg.org](https://ffmpeg.org)
+  - macOS: `brew install ffmpeg`
+  - Linux: `sudo apt install ffmpeg` or equivalent
 
-- Go 1.21+
-- ffmpeg (in PATH or specified via --ffmpeg)
+## 📄 License
 
-## License
+MIT License - see [LICENSE](LICENSE) for details.
 
-This project is open source and available under the MIT License.
+---
+
+**Need help?** Open an issue on [GitHub](https://github.com/hollowness-inside/m3u8/issues) or check the [Discussions](https://github.com/hollowness-inside/m3u8/discussions) tab.
