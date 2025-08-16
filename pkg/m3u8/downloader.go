@@ -49,7 +49,7 @@ func (d *Downloader) DownloadM3U8(ctx context.Context, url, forceURLPrefix, forc
 	fmt.Printf("Downloading .m3u8\n")
 
 	if d.cacheFile != "" {
-		return d.loadCache(d.cacheFile)
+		return d.loadCache()
 	}
 
 	segments, err := d.fetchM3U8(ctx, url, skip, limit)
@@ -66,8 +66,8 @@ func (d *Downloader) DownloadM3U8(ctx context.Context, url, forceURLPrefix, forc
 	return segments, nil
 }
 
-func (d *Downloader) loadCache(cacheFile string) ([]Segment, error) {
-	data, err := os.ReadFile(cacheFile)
+func (d *Downloader) loadCache() ([]Segment, error) {
+	data, err := os.ReadFile(d.cacheFile)
 	if err != nil {
 		return nil, err
 	}
