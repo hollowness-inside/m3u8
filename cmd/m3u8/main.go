@@ -42,6 +42,7 @@ func runE(cmd *cobra.Command, args []string) error {
 	// Create downloader
 	downloader := m3u8.NewDownloader()
 	downloader.SetHeaders(headers)
+	downloader.SetCacheFile(cacheFile)
 
 	// Handle fix mode, where segments are already partially downloaded
 	if fix != "" {
@@ -75,7 +76,7 @@ func runE(cmd *cobra.Command, args []string) error {
 	}
 
 	// Download and parse the M3U8 file to get the list of segments
-	segments, err := downloader.DownloadM3U8(ctx, url, cacheFile, forceURLPrefix, forceExt, skip, limit)
+	segments, err := downloader.DownloadM3U8(ctx, url, forceURLPrefix, forceExt, skip, limit)
 	if err != nil {
 		return err
 	}
