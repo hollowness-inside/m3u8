@@ -15,6 +15,7 @@ import (
 type Downloader struct {
 	client    *http.Client
 	transport *HeaderMapTransport
+	cacheFile string
 }
 
 // NewDownloader creates a new downloader with the given configuration
@@ -31,6 +32,10 @@ func NewDownloader() *Downloader {
 	}
 }
 
+func (d *Downloader) SetCacheFile(cacheFile string) {
+	d.cacheFile = cacheFile
+}
+
 // SetHeaders sets the HTTP headers for requests
 func (d *Downloader) SetHeaders(headers map[string]string) {
 	if headers == nil {
@@ -41,14 +46,11 @@ func (d *Downloader) SetHeaders(headers map[string]string) {
 }
 
 // DownloadM3U8 downloads and parses an M3U8 file
-func (d *Downloader) DownloadM3U8(ctx context.Context, url, cacheFile, forceURLPrefix, forceExt string, skip, limit int) ([]Segment, error) {
+func (d *Downloader) DownloadM3U8(ctx context.Context, url, forceURLPrefix, forceExt string, skip, limit int) ([]Segment, error) {
 	fmt.Printf("Downloading .m3u8\n")
 
-	if cacheFile != "" {
-		segments, err := d.loadCache(cacheFile)
-		if err == nil {
-			return segments, nil
-		}
+	if d.cacheFile != "" {
+		return d.loadCache(d.cacheFile)
 	}
 
 	segments, err := d.fetchM3U8(ctx, url, forceURLPrefix, forceExt, skip, limit)
@@ -56,8 +58,8 @@ func (d *Downloader) DownloadM3U8(ctx context.Context, url, cacheFile, forceURLP
 		return nil, err
 	}
 
-	if cacheFile != "" {
-		if err := d.saveCache(cacheFile, segments); err != nil {
+	if d.cacheFile != "" {
+		if err := d.saveCache(segments); err != nil {
 			return nil, err
 		}
 	}
@@ -84,7 +86,7 @@ func (d *Downloader) loadCache(cacheFile string) ([]Segment, error) {
 	return segments, nil
 }
 
-func (d *Downloader) saveCache(cacheFile string, segments []Segment) error {
+func (d *Downloader) saveCache(segments []Segment) error {
 	fmt.Printf("Caching .m3u8\n")
 
 	data, err := json.Marshal(segments)
@@ -92,7 +94,7 @@ func (d *Downloader) saveCache(cacheFile string, segments []Segment) error {
 		return err
 	}
 
-	return os.WriteFile(cacheFile, data, 0644)
+	return os.WriteFile(d.cacheFile, data, 0644)
 }
 
 func (d *Downloader) fetchM3U8(ctx context.Context, url, forceURLPrefix, forceExt string, skip int, limit int) ([]Segment, error) {
@@ -124,6 +126,7 @@ func (d *Downloader) fetchM3U8(ctx context.Context, url, forceURLPrefix, forceEx
 	if segments == nil {
 		return nil, fmt.Errorf("failed to parse m3u8 data")
 	}
+	print("segments", segments)
 
 	return segments, nil
 }
