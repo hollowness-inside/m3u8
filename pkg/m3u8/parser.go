@@ -3,6 +3,7 @@ package m3u8
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,9 +17,9 @@ type Segment struct {
 
 // TODO: !!! ASAP !!! Add support for skipping segments
 // parseM3U8 parses m3u8 content and returns a list of segments
-func parseM3U8(data, forceURLPrefix, forceExt string, skip, limit int) []Segment {
+func (d *Downloader) parseM3U8(data string, skip, limit int) ([]Segment, error) {
 	if data == "" {
-		return nil
+		return nil, fmt.Errorf("m3u8 data is empty")
 	}
 
 	segments := make([]Segment, 0, limit)
@@ -41,25 +42,30 @@ func parseM3U8(data, forceURLPrefix, forceExt string, skip, limit int) []Segment
 			break
 		}
 
-		url := line
-		if forceURLPrefix != "" {
-			url = forceURLPrefix + line
+		url, err := url.Parse(d.forceURLPrefix)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse URL prefix: %w", err)
 		}
+		url = url.JoinPath(line)
 
 		ext := filepath.Ext(line)
-		if forceExt != "" {
-			ext = forceExt
+		if d.forceExt != "" {
+			ext = d.forceExt
 		}
 
 		filename := fmt.Sprintf("segment_%04d%s", segmentNum, ext)
 		segments = append(segments, Segment{
-			URL:      url,
+			URL:      url.String(),
 			Filename: filename,
 		})
 		segmentNum++
 	}
 
-	return segments
+	if len(segments) == 0 {
+		return nil, fmt.Errorf("no segments found")
+	}
+
+	return segments, nil
 }
 
 // LoadHeadersFromFile loads custom HTTP headers from a JSON file

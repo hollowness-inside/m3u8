@@ -13,22 +13,21 @@ import (
 
 // Downloader handles M3U8 downloads and segment management
 type Downloader struct {
-	client    *http.Client
-	transport *HeaderMapTransport
-	cacheFile string
+	forceURLPrefix string
+	forceExt       string
+	cacheFile      string
+
+	client *http.Client
 }
 
 // NewDownloader creates a new downloader with the given configuration
 func NewDownloader() *Downloader {
-	transport := &HeaderMapTransport{
-		Base: http.DefaultTransport,
-	}
-
 	return &Downloader{
 		client: &http.Client{
-			Transport: transport,
+			Transport: &HeaderMapTransport{
+				Base: http.DefaultTransport,
+			},
 		},
-		transport: transport,
 	}
 }
 
@@ -42,7 +41,7 @@ func (d *Downloader) SetHeaders(headers map[string]string) {
 		return
 	}
 
-	d.transport.Headers = headers
+	d.client.Transport.(*HeaderMapTransport).Headers = headers
 }
 
 // DownloadM3U8 downloads and parses an M3U8 file
@@ -53,7 +52,7 @@ func (d *Downloader) DownloadM3U8(ctx context.Context, url, forceURLPrefix, forc
 		return d.loadCache(d.cacheFile)
 	}
 
-	segments, err := d.fetchM3U8(ctx, url, forceURLPrefix, forceExt, skip, limit)
+	segments, err := d.fetchM3U8(ctx, url, skip, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +96,7 @@ func (d *Downloader) saveCache(segments []Segment) error {
 	return os.WriteFile(d.cacheFile, data, 0644)
 }
 
-func (d *Downloader) fetchM3U8(ctx context.Context, url, forceURLPrefix, forceExt string, skip int, limit int) ([]Segment, error) {
+func (d *Downloader) fetchM3U8(ctx context.Context, url string, skip int, limit int) ([]Segment, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
@@ -118,9 +117,9 @@ func (d *Downloader) fetchM3U8(ctx context.Context, url, forceURLPrefix, forceEx
 		return nil, fmt.Errorf("failed to read m3u8: %w", err)
 	}
 
-	segments := parseM3U8(string(data), forceURLPrefix, forceExt, skip, limit)
-	if segments == nil {
-		return nil, fmt.Errorf("failed to parse m3u8 data")
+	segments, err := d.parseM3U8(string(data), skip, limit)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't parse m3u8 segments: %w", err)
 	}
 	print("segments", segments)
 
